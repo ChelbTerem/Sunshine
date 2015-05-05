@@ -1,8 +1,12 @@
 package de.hsworms.inf2481.sunshine;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -11,8 +15,10 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -69,7 +75,7 @@ public class ForecastFragment extends Fragment {
         // Check which item has been selected
         int tID = xItem.getItemId();
         if(tID == R.id.action_refresh) {
-            new FetchWeatherTask().execute("56288");
+            updateWeather();
             return true;
         }
 
@@ -77,6 +83,27 @@ public class ForecastFragment extends Fragment {
         return super.onOptionsItemSelected(xItem);
     }
 
+    /**
+     * updateWeather
+     * This method launches the async task to obtain new weather data
+     */
+    private void updateWeather() {
+        SharedPreferences tSharedPreferences = getActivity().getPreferences(Context.MODE_PRIVATE);
+        String tZIPCode = tSharedPreferences.getString(getString(R.string.pref_location_key), getString(R.string.pref_location_default));
+        String tUnits   = tSharedPreferences.getString(getString(R.string.pref_unit_key),     getString(R.string.pref_unit_default));
+
+        new FetchWeatherTask().execute(tZIPCode);
+    }
+
+    @Override
+    /**
+     * onStart
+     * Overwritten onStart method for this fragment
+     */
+    public void onStart() {
+        super.onStart();
+        updateWeather();
+    }
 
     @Override
     /**
@@ -110,8 +137,24 @@ public class ForecastFragment extends Fragment {
         // Allow the adapter to connect between data and ui
         ListView tForecastListView = (ListView) tRootView.findViewById(R.id.listview_forecast);
         tForecastListView.setAdapter(mWeatherDataAdapter);
+        tForecastListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            /**
+             * onItemClick
+             * Defines what happens if the user clicked on an item
+             */
+            public void onItemClick(AdapterView<?> xParent, View xView, int xPosition, long xID) {
+
+                Intent tShowDetailsIntent = new Intent(getActivity(), DetailActivity.class);
+                tShowDetailsIntent.putExtra(Intent.EXTRA_TEXT, mWeatherDataAdapter.getItem(xPosition));
+                startActivity(tShowDetailsIntent);
+                //Toast.makeText(getActivity(), mWeatherDataAdapter.getItem(xPosition), Toast.LENGTH_LONG).show();
+            }
+        });
         return tRootView;
     }
+
+
 
     /**
      * FetchWeatherTask class
@@ -212,7 +255,6 @@ public class ForecastFragment extends Fragment {
             return tReturnValue;
         }
 
-
         @Override
         /**
          * onPostExecute
@@ -247,9 +289,22 @@ public class ForecastFragment extends Fragment {
          * Prepare the weather high/lows for presentation.
          */
         private String formatHighLows(double xHigh, double xLow) {
+
+            double tHighValue = xHigh;
+            double tLowValue  = xLow;
+
+            SharedPreferences tPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+            String tUnitType = tPreferences.getString(getString(R.string.pref_unit_key), getString(R.string.pref_unit_default));
+            if(tUnitType.equals(getString(R.string.pref_unit_imperial))) {
+                tHighValue = (tHighValue * 1.8) + 32;
+                tLowValue  = (tLowValue  * 1.8) + 32;
+            } else if(!tUnitType.equals(getString(R.string.pref_unit_metric))) {
+                Log.d(LOG_TAG, "Unknown unit type detected: " + tUnitType);
+            }
+
             // For presentation, assume the user doesn't care about tenths of a degree.
-            long tRoundedHigh = Math.round(xHigh);
-            long tRoundedLow = Math.round(xLow);
+            long tRoundedHigh = Math.round(tHighValue);
+            long tRoundedLow  = Math.round(tLowValue);
 
             String tHighLowStr = tRoundedHigh + "/" + tRoundedLow;
             return tHighLowStr;
