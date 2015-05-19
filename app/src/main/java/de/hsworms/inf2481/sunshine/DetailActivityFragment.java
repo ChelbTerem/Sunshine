@@ -79,7 +79,7 @@ public class DetailActivityFragment extends Fragment {
      */
     private Intent createShareIntent() {
         Intent tShareIntent = new Intent(Intent.ACTION_SEND);
-        tShareIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
+        tShareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
         tShareIntent.setType("text/plain");
         tShareIntent.putExtra(Intent.EXTRA_TEXT, mForecastString + SHARE_HASHTAG);
         return tShareIntent;
